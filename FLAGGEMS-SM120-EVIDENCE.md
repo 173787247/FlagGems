@@ -129,3 +129,34 @@ versions, two different symptoms, same file.
 - Whether the `TypeError` is FlagGems' or Triton's, or which version pair is "right".
 - Whether the segfault also happens on the Triton version FlagGems targets.
 - Whether any of this reproduces on another GPU.
+
+---
+
+## 7. Correction: problem ① is already reported, and its cause is in Triton
+
+After writing the above, searching FlagGems' issues found
+[#4626](https://github.com/flagos-ai/FlagGems/issues/4626) — *"Segmentation fault when
+running `test_add` with CUDA 13.2 / PyTorch nightly (Triton 3.7.1 regression)"*, opened
+2026-07-09, **no comments to date**.
+
+Its stack trace matches the one in section 2 line for line: `driver.py:328 in __call__`,
+`triton/runtime/jit.py:370`, the same entry in `.flaggems/code_cache`, `add.py:87`. It
+also goes further than this document did:
+
+> This is a Triton 3.7.1 regression. The issue does not occur with Triton 3.6.0 —
+> reverting to 3.6.0 resolves the segfault completely.
+
+So problem ① is **not** an sm_120 issue, **not** a FlagGems kernel defect, and **not** new.
+The GPU and driver are not implicated; the Triton version is.
+
+What is still worth adding to that issue is the part that is not in it:
+
+- The control experiment in section 2 — a hand-written kernel launched repeatedly in the
+  same environment does not crash, so it is the `pointwise_dynamic` path specifically,
+  not Triton launch in general.
+- Section 3 — applying #4968 changes the failure from a segfault into a `TypeError`,
+  which is a different and more diagnosable failure. That is relevant to #4626 because it
+  means the block-pointer dtype bug was *also* present and was being masked by the crash.
+
+Sections 4-6 are left as written; section 6's "not established" list shrank by one item —
+which Triton version is at fault is now answered by #4626.
